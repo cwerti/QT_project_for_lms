@@ -6,11 +6,16 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWid
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt
 import matplotlib.pyplot as plt
-from PyQt5 import uic
 import datetime as dt
 import xlsxwriter
 import numpy as np
 from pathlib import Path
+from main_wind import Ui_main
+from input_wind import Ui_main1
+from date_change_wind import Ui_Form
+from graph_wind import Ui_Form1
+from table_ui import Ui_MainWindow
+from alert_ui import Ui_Form_alert
 
 Q = QPushButton
 
@@ -71,11 +76,12 @@ def create_diag(labels, sizes):
     fig1.savefig(name_file, dpi=600)
 
 
-class Notification(QWidget):
+class Notification(QWidget, Ui_Form_alert):
     next: QPushButton
 
     def __init__(self):
         super().__init__()
+        self.setupUi(self)
         self.init_ui()
 
     def enter(self):
@@ -83,12 +89,11 @@ class Notification(QWidget):
         self.hide()
 
     def init_ui(self):
-        uic.loadUi('alert.ui', self)
         self.setFixedSize(self.size())
         self.next.clicked.connect(self.enter)
 
 
-class DbInQT(QMainWindow):
+class DbInQT(QMainWindow, Ui_MainWindow):
     table: QTableWidget
     saving: QPushButton
     del_db: QPushButton
@@ -96,13 +101,12 @@ class DbInQT(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        self.setupUi(self)
         self.init_ui()
         self.titles = None
-        self.con = sqlite3.connect("films_db.sqlite")
         self.data_in_table = []
 
     def init_ui(self):
-        uic.loadUi('table.ui', self)
         self.setFixedSize(self.size())
         self.update_result()
         self.table.itemChanged.connect(self.item_changed)
@@ -164,7 +168,7 @@ class DbInQT(QMainWindow):
         self.hide()
 
 
-class GraphDate(QWidget):
+class GraphDate(QWidget, Ui_Form1):
     generate: QPushButton
     label_for_graph: QLabel
     left_date: QLineEdit
@@ -174,10 +178,10 @@ class GraphDate(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.setupUi(self)
         self.init_ui()
 
     def init_ui(self):
-        uic.loadUi('graph.ui', self)
         self.left_date.setText(str(dt.date.today()))
         self.right_date.setText(str(dt.date.today()))
         self.left = self.left_date.text()
@@ -245,13 +249,14 @@ class GraphDate(QWidget):
         self.hide()
 
 
-class DateChoise(QWidget):
+class DateChoise(QWidget, Ui_Form):
     date: QTextEdit
     next: QPushButton
     error: QLabel
 
     def __init__(self):
         super().__init__()
+        self.setupUi(self)
         self.init_ui()
 
     def choise_date(self):
@@ -270,14 +275,13 @@ class DateChoise(QWidget):
         return self.date.toPlainText()
 
     def init_ui(self):
-        uic.loadUi('date_change.ui', self)
         self.date.setText(str(dt.date.today()))
         self.error.setText('')
         self.setFixedSize(self.size())
         self.next.clicked.connect(self.choise_date)
 
 
-class InputWind(QWidget):
+class InputWind(QWidget, Ui_main1):
     eat: QPushButton
     car: QPushButton
     chill: QPushButton
@@ -297,6 +301,7 @@ class InputWind(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.setupUi(self)
         self.category = None
         self.sum = 0
         self.day = ''
@@ -378,14 +383,13 @@ class InputWind(QWidget):
         self.hide()
 
     def init_ui(self):
-        uic.loadUi('123.ui', self)
         self.setFixedSize(self.size())
         self.category_check()
         self.date_check()
         self.next.clicked.connect(self.add_db_QT)
 
 
-class MainWind(QMainWindow):
+class MainWind(QMainWindow, Ui_main):
     main: QWidget
     label: QLabel
     add: QPushButton
@@ -430,6 +434,7 @@ class MainWind(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        self.setupUi(self)
         self.init_ui()
         self.input_wind = InputWind()
         self.notif = Notification()
@@ -539,7 +544,6 @@ class MainWind(QMainWindow):
         self.table.show()
 
     def init_ui(self):
-        uic.loadUi('test.ui', self)
         self.diag_all_time()
         self.add.clicked.connect(self.next)
         self.setFixedSize(self.size())
