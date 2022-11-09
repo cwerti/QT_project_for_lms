@@ -1,7 +1,8 @@
 import sys
 import sqlite3
 from PIL import Image
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWidget, QTextEdit, QLineEdit
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWidget, QTextEdit, QLineEdit, QTableWidget, \
+    QTableWidgetItem
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt
 import matplotlib.pyplot as plt
@@ -20,10 +21,10 @@ background-color: darkgray;
 """
 
 
-def save_in_dir(file):  # сохраняем базу в директорию пользователя
+def save_in_dir(file):  # сохраняем в директорию пользователя
     db_folder = Path.home()
     db_folder = db_folder / f'{file}'
-    return str(file)
+    return str(db_folder)
 
 
 def date_from_int(date):
@@ -87,17 +88,58 @@ class Notification(QWidget):
         self.next.clicked.connect(self.enter)
 
 
-class DbInQT(QWidget):
+class DbInQT(QMainWindow):
+    table: QTableWidget
+    saving: QPushButton
 
     def __init__(self):
         super().__init__()
         self.init_ui()
+        self.titles = None
+        self.con = sqlite3.connect("films_db.sqlite")
+        self.data_in_table = []
 
     def init_ui(self):
-        uic.loadUi('alert.ui', self)
+        uic.loadUi('table.ui', self)
         self.setFixedSize(self.size())
+        self.update_redult()
+        self.table.itemChanged.connect(self.item_changed)
+        self.saving.clicked.connect(self.save_results)
 
+        # self.table.setColumnCount(5)
+        # self.table.setRowCount(2)
+        # self.table.setItem(1, 1, QTableWidgetItem('wqewqr'))
 
+    def update_redult(self):
+        con = sqlite3.connect("./projeckt_db.sqlite")
+        cur = con.cursor()
+        data = cur.execute(f"""SELECT * FROM spending_DB """).fetchall()
+        self.table.setColumnCount(5)
+        self.table.setRowCount(len(data))
+        for row, (id, price, date, category, coments) in enumerate(data):
+            values = (id, price, date, category, coments)
+            for i in range(5):
+                self.table.setItem(row, i, QTableWidgetItem(str(values[i])))
+
+    def item_changed(self, item: QTableWidgetItem):
+        con = sqlite3.connect("./projeckt_db.sqlite")
+        cur = con.cursor()
+        data = cur.execute(f"""SELECT * FROM spending_DB """).fetchall()
+        self.id = []
+        for row, (id, price, date, category, coments) in enumerate(data):
+            self.id.append(id)
+        self.titles = [description[0] for description in cur.description]
+        self.data_in_table = self.data_in_table + [self.id[item.row()], self.titles[item.column()], item.text()]
+        print(self.data_in_table)
+
+    def save_results(self):
+        for i in range(0, len(self.data_in_table), 3):
+            con = sqlite3.connect("./projeckt_db.sqlite")
+            cur = con.cursor()
+            data = cur.execute(f"""UPDATE spending_DB SET 
+            {self.data_in_table[i + 1]} = '{self.data_in_table[i + 2]}' WHERE id = {int(self.data_in_table[i])}""").fetchall()
+            con.commit()
+            cur.close()
 
 
 class GraphDate(QWidget):
@@ -329,6 +371,7 @@ class MainWind(QMainWindow):
         self.input_wind = InputWind()
         self.notif = Notification()
         self.input_graph = GraphDate()
+        self.table = DbInQT()
 
     def diag_all_time(self):
         labels = self.category_from_db()
@@ -417,6 +460,7 @@ class MainWind(QMainWindow):
 
     def db_show(self):
         main.hide()
+        self.table.show()
 
     def init_ui(self):
         uic.loadUi('test.ui', self)
