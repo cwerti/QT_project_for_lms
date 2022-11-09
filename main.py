@@ -170,6 +170,7 @@ class GraphDate(QWidget):
     left_date: QLineEdit
     right_date: QLineEdit
     home: QPushButton
+    error: QLabel
 
     def __init__(self):
         super().__init__()
@@ -212,6 +213,18 @@ class GraphDate(QWidget):
     def graph(self):
         self.left = self.left_date.text()
         self.right = self.right_date.text()
+        left = date_from_int(self.left)
+        right = date_from_int(self.right)
+        try:
+            if left > right or len(str(left)) != 8 or len(str(right)) != 8:
+                a = 0 / 0
+        except:
+            self.error.setText('Введите коректные данные!!')
+            self.left_date.setText(str(dt.date.today()))
+            self.right_date.setText(str(dt.date.today()))
+            self.left = self.left_date.text()
+            self.right = self.right_date.text()
+            return 0
         summa, date = self.date_from_db(self.left, self.right)
         summa = np.array(summa)
         fig, ax = plt.subplots()
@@ -235,20 +248,23 @@ class GraphDate(QWidget):
 class DateChoise(QWidget):
     date: QTextEdit
     next: QPushButton
+    error: QLabel
 
     def __init__(self):
         super().__init__()
         self.init_ui()
 
     def choise_date(self):
-        self.day = self.date.toPlainText()
-        date_mas = list(map(int, self.day.split('-')))
-        self.date_out = str(dt.date(date_mas[0], date_mas[1], date_mas[2]))
-        self.date.setText(self.date_out)
-
-    def farther(self):
-        self.choise_date()
-        self.hide()
+        try:
+            self.day = self.date.toPlainText()
+            date_mas = list(map(int, self.day.split('-')))
+            self.date_out = str(dt.date(date_mas[0], date_mas[1], date_mas[2]))
+            self.date.setText(self.date_out)
+            self.hide()
+            self.error.setText('')
+        except:
+            self.date.setText(str(dt.date.today()))
+            self.error.setText('Введена некоректная дата, повторите попытку!!')
 
     def cout(self):
         return self.date.toPlainText()
@@ -256,8 +272,9 @@ class DateChoise(QWidget):
     def init_ui(self):
         uic.loadUi('date_change.ui', self)
         self.date.setText(str(dt.date.today()))
+        self.error.setText('')
         self.setFixedSize(self.size())
-        self.next.clicked.connect(self.farther)
+        self.next.clicked.connect(self.choise_date)
 
 
 class InputWind(QWidget):
@@ -276,9 +293,13 @@ class InputWind(QWidget):
     coments: QTextEdit
     summa: QTextEdit
     next: QPushButton
+    error: QLabel
 
     def __init__(self):
         super().__init__()
+        self.category = None
+        self.sum = 0
+        self.day = ''
         self.init_ui()
         self.date_choice = DateChoise()
 
@@ -325,12 +346,29 @@ class InputWind(QWidget):
 
     def add_db_QT(self):
         self.sum_check()
+        if self.sum <= 0:
+            try:
+                a = 0 / 0
+            except:
+                self.error.setText('Введена некоректная сумма!!')
+                return 0
+        if self.category is None:
+            try:
+                a = 0 / 0
+            except:
+                self.error.setText('Выберите категорию!!')
+                return 0
         self.coment_check()
         if self.day == None:
             self.day = self.date_choice.cout()
         self.day = str(self.day)
+        if self.day == '':
+            try:
+                a = 0 / 0
+            except:
+                self.error.setText('Выберите дату!!')
+                return 0
         add_db(self.sum, self.day, self.category, self.coments.toPlainText())
-
         main.diag_all_time()
         main.last_category_output()
         main.last_day_output()
@@ -438,7 +476,8 @@ class MainWind(QMainWindow):
         cur = con.cursor()
         i_num = cur.execute(f"""SELECT MAX(id) FROM spending_DB """).fetchall()
         result = cur.execute(f"""SELECT * FROM spending_DB WHERE id = '{i_num[0][0]}'""").fetchall()
-        self.last_category.setText(result[-1][-2])
+        if result != []:
+            self.last_category.setText(result[-1][-2])
         self.last_category.setAlignment(Qt.AlignCenter)
         self.last_category.setStyleSheet("background-color: rgb(103, 103, 108);")
 
@@ -447,9 +486,10 @@ class MainWind(QMainWindow):
         cur = con.cursor()
         i_num = cur.execute(f"""SELECT MAX(id) FROM spending_DB """).fetchall()
         result = cur.execute(f"""SELECT * FROM spending_DB WHERE id = '{i_num[0][0]}'""").fetchall()
-        result_st = str(result[-1][-3])
-        year, month, day = str(result_st[:4]), str(result_st[4:6]), str(result_st[6:])
-        self.last_date.setText(year + '-' + month + '-' + day)
+        if result != []:
+            result_st = str(result[-1][-3])
+            year, month, day = str(result_st[:4]), str(result_st[4:6]), str(result_st[6:])
+            self.last_date.setText(year + '-' + month + '-' + day)
         self.last_date.setAlignment(Qt.AlignCenter)
         self.last_date.setStyleSheet("background-color: rgb(103, 103, 108);")
 
@@ -458,8 +498,9 @@ class MainWind(QMainWindow):
         cur = con.cursor()
         i_num = cur.execute(f"""SELECT MAX(id) FROM spending_DB """).fetchall()
         result = cur.execute(f"""SELECT * FROM spending_DB WHERE id = '{i_num[0][0]}'""").fetchall()
-        result_st = str(result[-1][-1])
-        self.label_4.setText(result_st)
+        if result != []:
+            result_st = str(result[-1][-1])
+            self.label_4.setText(result_st)
         self.label_4.setAlignment(Qt.AlignCenter)
         self.label_4.setStyleSheet("background-color: rgb(59, 49, 93);")
 
@@ -468,7 +509,8 @@ class MainWind(QMainWindow):
         cur = con.cursor()
         i_num = cur.execute(f"""SELECT MAX(id) FROM spending_DB """).fetchall()
         result = cur.execute(f"""SELECT * FROM spending_DB WHERE id = '{i_num[0][0]}'""").fetchall()
-        self.last_sum.setText(str(result[-1][1]))
+        if result != []:
+            self.last_sum.setText(str(result[-1][1]))
         self.last_sum.setAlignment(Qt.AlignCenter)
         self.last_sum.setStyleSheet("background-color: rgb(103, 103, 108);")
 
