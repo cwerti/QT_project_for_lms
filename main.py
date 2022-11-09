@@ -2,7 +2,7 @@ import sys
 import sqlite3
 from PIL import Image
 from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWidget, QTextEdit, QLineEdit, QTableWidget, \
-    QTableWidgetItem
+    QTableWidgetItem, QMessageBox
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt
 import matplotlib.pyplot as plt
@@ -91,6 +91,8 @@ class Notification(QWidget):
 class DbInQT(QMainWindow):
     table: QTableWidget
     saving: QPushButton
+    del_db: QPushButton
+    home: QPushButton
 
     def __init__(self):
         super().__init__()
@@ -102,15 +104,13 @@ class DbInQT(QMainWindow):
     def init_ui(self):
         uic.loadUi('table.ui', self)
         self.setFixedSize(self.size())
-        self.update_redult()
+        self.update_result()
         self.table.itemChanged.connect(self.item_changed)
         self.saving.clicked.connect(self.save_results)
+        self.del_db.clicked.connect(self.delete_elem)
+        self.home.clicked.connect(self.go_home)
 
-        # self.table.setColumnCount(5)
-        # self.table.setRowCount(2)
-        # self.table.setItem(1, 1, QTableWidgetItem('wqewqr'))
-
-    def update_redult(self):
+    def update_result(self):
         con = sqlite3.connect("./projeckt_db.sqlite")
         cur = con.cursor()
         data = cur.execute(f"""SELECT * FROM spending_DB """).fetchall()
@@ -130,7 +130,6 @@ class DbInQT(QMainWindow):
             self.id.append(id)
         self.titles = [description[0] for description in cur.description]
         self.data_in_table = self.data_in_table + [self.id[item.row()], self.titles[item.column()], item.text()]
-        print(self.data_in_table)
 
     def save_results(self):
         for i in range(0, len(self.data_in_table), 3):
@@ -140,6 +139,29 @@ class DbInQT(QMainWindow):
             {self.data_in_table[i + 1]} = '{self.data_in_table[i + 2]}' WHERE id = {int(self.data_in_table[i])}""").fetchall()
             con.commit()
             cur.close()
+
+    def delete_elem(self):
+        rows = list(set([i.row() for i in self.table.selectedItems()]))
+        ids = [self.table.item(i, 0).text() for i in rows]
+        valid = QMessageBox.question(
+            self, '', "Действительно удалить элементы с id " + ",".join(ids),
+            QMessageBox.Yes, QMessageBox.No)
+        if valid == QMessageBox.Yes:
+            con = sqlite3.connect("./projeckt_db.sqlite")
+            cur = con.cursor()
+            cur.execute("DELETE FROM spending_DB WHERE id IN (" + ", ".join(
+                '?' * len(ids)) + ")", ids)
+            con.commit()
+            self.update_result()
+
+    def go_home(self):
+        main.diag_all_time()
+        main.last_category_output()
+        main.last_day_output()
+        main.last_coment_output()
+        main.last_sum_output()
+        main.show()
+        self.hide()
 
 
 class GraphDate(QWidget):
@@ -205,6 +227,7 @@ class GraphDate(QWidget):
         main.last_category_output()
         main.last_day_output()
         main.last_coment_output()
+        main.last_sum_output()
         main.show()
         self.hide()
 
@@ -312,6 +335,7 @@ class InputWind(QWidget):
         main.last_category_output()
         main.last_day_output()
         main.last_coment_output()
+        main.last_sum_output()
         main.show()
         self.hide()
 
@@ -338,6 +362,7 @@ class MainWind(QMainWindow):
     label_4: QLabel
     graph: QPushButton
     btn_lst_trans: QPushButton
+    last_sum: QLabel
 
     def category_from_db(self, left=0, right=30000000):
         con = sqlite3.connect("./projeckt_db.sqlite")
@@ -438,6 +463,15 @@ class MainWind(QMainWindow):
         self.label_4.setAlignment(Qt.AlignCenter)
         self.label_4.setStyleSheet("background-color: rgb(59, 49, 93);")
 
+    def last_sum_output(self):
+        con = sqlite3.connect("./projeckt_db.sqlite")
+        cur = con.cursor()
+        i_num = cur.execute(f"""SELECT MAX(id) FROM spending_DB """).fetchall()
+        result = cur.execute(f"""SELECT * FROM spending_DB WHERE id = '{i_num[0][0]}'""").fetchall()
+        self.last_sum.setText(str(result[-1][1]))
+        self.last_sum.setAlignment(Qt.AlignCenter)
+        self.last_sum.setStyleSheet("background-color: rgb(103, 103, 108);")
+
     def db_to_excel(self):
         con = sqlite3.connect("./projeckt_db.sqlite")
         cur = con.cursor()
@@ -478,6 +512,7 @@ class MainWind(QMainWindow):
         self.last_category_output()
         self.last_day_output()
         self.last_coment_output()
+        self.last_sum_output()
 
     def graph_data(self):
         self.input_graph.show()
