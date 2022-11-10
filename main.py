@@ -10,10 +10,10 @@ import datetime as dt
 import xlsxwriter
 import numpy as np
 from pathlib import Path
-from main_wind import Ui_main
-from input_wind import Ui_main1
-from date_change_wind import Ui_Form
-from graph_wind import Ui_Form1
+from main_wind_ui import Ui_main
+from input_wind_ui import Ui_main1
+from date_change_wind_ui import Ui_Form
+from graph_wind_ui import Ui_Form1
 from table_ui import Ui_MainWindow
 from alert_ui import Ui_Form_alert
 
@@ -32,6 +32,19 @@ def save_in_dir(file):  # сохраняем в директорию польз�
     return str(db_folder)
 
 
+con = sqlite3.connect(save_in_dir('projeckt_db.sqlite'))
+con.execute("""
+        CREATE TABLE IF NOT EXISTS spending_DB(
+        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+        sum      INTEGER,
+        date     INTEGER,
+        category STRING,
+        coments  STRING  DEFAULT ('Коментарий не указан') 
+        );
+        """)
+cur = con.cursor()
+
+
 def date_from_int(date):
     date = int(''.join(date.split('-')))
     return date
@@ -47,22 +60,10 @@ def int_from_date(date, lens=False):
 
 
 def add_db(sum, date, category, coment):
-    con = sqlite3.connect("./projeckt_db.sqlite")
     date = date_from_int(date)
-    con.execute("""
-    CREATE TABLE IF NOT EXISTS spending_DB(
-    id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    sum      INTEGER,
-    date     INTEGER,
-    category STRING,
-    coments  STRING  DEFAULT ('Коментарий не указан') 
-    );
-    """)
-    cur = con.cursor()
     ins = f"""INSERT INTO spending_DB (sum, date, category, coments) VALUES ({sum}, '{date}', '{category}', '{coment}')"""
     count = cur.execute(ins)
     con.commit()
-    cur.close()
 
 
 def create_diag(labels, sizes):
@@ -115,8 +116,6 @@ class DbInQT(QMainWindow, Ui_MainWindow):
         self.home.clicked.connect(self.go_home)
 
     def update_result(self):
-        con = sqlite3.connect("./projeckt_db.sqlite")
-        cur = con.cursor()
         data = cur.execute(f"""SELECT * FROM spending_DB """).fetchall()
         self.table.setColumnCount(5)
         self.table.setRowCount(len(data))
@@ -126,8 +125,6 @@ class DbInQT(QMainWindow, Ui_MainWindow):
                 self.table.setItem(row, i, QTableWidgetItem(str(values[i])))
 
     def item_changed(self, item: QTableWidgetItem):
-        con = sqlite3.connect("./projeckt_db.sqlite")
-        cur = con.cursor()
         data = cur.execute(f"""SELECT * FROM spending_DB """).fetchall()
         self.id = []
         for row, (id, price, date, category, coments) in enumerate(data):
@@ -137,12 +134,9 @@ class DbInQT(QMainWindow, Ui_MainWindow):
 
     def save_results(self):
         for i in range(0, len(self.data_in_table), 3):
-            con = sqlite3.connect("./projeckt_db.sqlite")
-            cur = con.cursor()
             data = cur.execute(f"""UPDATE spending_DB SET 
             {self.data_in_table[i + 1]} = '{self.data_in_table[i + 2]}' WHERE id = {int(self.data_in_table[i])}""").fetchall()
             con.commit()
-            cur.close()
 
     def delete_elem(self):
         rows = list(set([i.row() for i in self.table.selectedItems()]))
@@ -151,8 +145,6 @@ class DbInQT(QMainWindow, Ui_MainWindow):
             self, '', "Действительно удалить элементы с id " + ",".join(ids),
             QMessageBox.Yes, QMessageBox.No)
         if valid == QMessageBox.Yes:
-            con = sqlite3.connect("./projeckt_db.sqlite")
-            cur = con.cursor()
             cur.execute("DELETE FROM spending_DB WHERE id IN (" + ", ".join(
                 '?' * len(ids)) + ")", ids)
             con.commit()
@@ -201,8 +193,6 @@ class GraphDate(QWidget, Ui_Form1):
     def date_from_db(self, left=0, right=30000000):
         left = date_from_int(left)
         right = date_from_int(right)
-        con = sqlite3.connect("./projeckt_db.sqlite")
-        cur = con.cursor()
         result = cur.execute("""SELECT date FROM spending_DB WHERE date >= ? and date <= ?""",
                              (left, right)).fetchall()
         date = []
@@ -407,19 +397,14 @@ class MainWind(QMainWindow, Ui_main):
     last_sum: QLabel
 
     def category_from_db(self, left=0, right=30000000):
-        con = sqlite3.connect("./projeckt_db.sqlite")
-        cur = con.cursor()
         mn = set()
         result = cur.execute("""SELECT category FROM spending_DB WHERE date >= ? and date <= ?""",
                              (left, right)).fetchall()
         for elem in result:
             mn.add(elem[0])
-        con.close()
         return list(mn)
 
     def sum_from_db(self, left=0, right=30000000):
-        con = sqlite3.connect("./projeckt_db.sqlite")
-        cur = con.cursor()
         sum_db_data = []
         category = self.category_from_db()
         for it in category:
@@ -477,8 +462,6 @@ class MainWind(QMainWindow, Ui_main):
         self.label.setPixmap(self.pixmap)
 
     def last_category_output(self):
-        con = sqlite3.connect("./projeckt_db.sqlite")
-        cur = con.cursor()
         i_num = cur.execute(f"""SELECT MAX(id) FROM spending_DB """).fetchall()
         result = cur.execute(f"""SELECT * FROM spending_DB WHERE id = '{i_num[0][0]}'""").fetchall()
         if result != []:
@@ -487,8 +470,6 @@ class MainWind(QMainWindow, Ui_main):
         self.last_category.setStyleSheet("background-color: rgb(103, 103, 108);")
 
     def last_day_output(self):
-        con = sqlite3.connect("./projeckt_db.sqlite")
-        cur = con.cursor()
         i_num = cur.execute(f"""SELECT MAX(id) FROM spending_DB """).fetchall()
         result = cur.execute(f"""SELECT * FROM spending_DB WHERE id = '{i_num[0][0]}'""").fetchall()
         if result != []:
@@ -499,8 +480,6 @@ class MainWind(QMainWindow, Ui_main):
         self.last_date.setStyleSheet("background-color: rgb(103, 103, 108);")
 
     def last_coment_output(self):
-        con = sqlite3.connect("./projeckt_db.sqlite")
-        cur = con.cursor()
         i_num = cur.execute(f"""SELECT MAX(id) FROM spending_DB """).fetchall()
         result = cur.execute(f"""SELECT * FROM spending_DB WHERE id = '{i_num[0][0]}'""").fetchall()
         if result != []:
@@ -510,8 +489,6 @@ class MainWind(QMainWindow, Ui_main):
         self.label_4.setStyleSheet("background-color: rgb(59, 49, 93);")
 
     def last_sum_output(self):
-        con = sqlite3.connect("./projeckt_db.sqlite")
-        cur = con.cursor()
         i_num = cur.execute(f"""SELECT MAX(id) FROM spending_DB """).fetchall()
         result = cur.execute(f"""SELECT * FROM spending_DB WHERE id = '{i_num[0][0]}'""").fetchall()
         if result != []:
@@ -520,8 +497,6 @@ class MainWind(QMainWindow, Ui_main):
         self.last_sum.setStyleSheet("background-color: rgb(103, 103, 108);")
 
     def db_to_excel(self):
-        con = sqlite3.connect("./projeckt_db.sqlite")
-        cur = con.cursor()
         data = cur.execute(f"""SELECT * FROM spending_DB """).fetchall()
         workbook = xlsxwriter.Workbook('Суммы.xlsx')
         worksheet = workbook.add_worksheet()
